@@ -2,9 +2,10 @@ name: Daily Sleep Story Upload
 
 on:
   schedule:
-    # 21:00 UTC daily = good evening upload time for US/EU audiences.
+    # 21:00 UTC every 2 days (runs on odd days of the month: 1,3,5...31) =
+    # good evening upload time for US/EU audiences.
     # Change to match when your audience is most likely to be winding down.
-    - cron: "0 21 * * *"
+    - cron: "0 21 */2 * *"
   workflow_dispatch: {}   # lets you trigger a run manually from the Actions tab
 
 jobs:
