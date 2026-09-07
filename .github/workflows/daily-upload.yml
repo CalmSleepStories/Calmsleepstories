@@ -1,1 +1,49 @@
+name: Daily Sleep Story Upload
 
+on:
+  schedule:
+    # 21:00 UTC daily = good evening upload time for US/EU audiences.
+    # Change to match when your audience is most likely to be winding down.
+    - cron: "0 21 * * *"
+  workflow_dispatch: {}   # lets you trigger a run manually from the Actions tab
+
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run pipeline
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          VIDEO_MINUTES: "20"
+          TTS_VOICE: "en-US-JennyNeural"
+          TTS_RATE: "-15%"
+          CHANNEL_MADE_FOR_KIDS: "false"
+        run: python main.py
+
+      - name: Commit updated content_plan.json
+        run: |
+          git config user.name "sleep-story-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add content_plan.json
+          git diff --cached --quiet || git commit -m "chore: mark topic as used [skip ci]"
+          git push
