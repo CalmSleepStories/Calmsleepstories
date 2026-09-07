@@ -57,7 +57,7 @@ def pick_topic(plan):
 
 def generate_script(topic_title: str) -> str:
     genai.configure(api_key=os.environ["GEMINI_API_KEY"])
-    model = genai.GenerativeModel("gemini-2.5-flash")
+    model = genai.GenerativeModel("gemini-3.6-flash")
 
     prompt = f"{SYSTEM_PROMPT}\n\nTonight's story topic: \"{topic_title}\""
     response = model.generate_content(prompt)
@@ -71,7 +71,7 @@ def generate_script(topic_title: str) -> str:
 def derive_visual_queries(topic_title: str) -> list:
     """Ask Gemini for a handful of calm Pexels search queries matching the story."""
     genai.configure(api_key=os.environ["GEMINI_API_KEY"])
-    model = genai.GenerativeModel("gemini-2.5-flash")
+    model = genai.GenerativeModel("gemini-3.6-flash")
     prompt = (
         "Give me 6 short Pexels stock-video search queries (2-4 words each) for calm, "
         "slow, sleep-story background footage matching this topic. Nature, soft light, "
