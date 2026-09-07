@@ -1,0 +1,1 @@
+Put 1-2 royalty-free calm/ambient .mp3 tracks here (e.g. from YouTube Audio Library, Pixabay Music, or freesound.org). compose_video.py will loop whichever file it finds and mix it quietly under the narration.
