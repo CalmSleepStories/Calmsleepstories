@@ -1,16 +1,69 @@
 {
   "topics": [
-    { "id": 1, "title": "A Slow Walk Through a Moonlit Forest", "status": "pending" },
-    { "id": 2, "title": "The Lighthouse Keeper's Quiet Night", "status": "pending" },
-    { "id": 3, "title": "Drifting on a Sleeper Train Through the Countryside", "status": "pending" },
-    { "id": 4, "title": "A Cabin by the Lake in Autumn Rain", "status": "pending" },
-    { "id": 5, "title": "The Old Library After Closing Time", "status": "pending" },
-    { "id": 6, "title": "A Quiet Village Bakery Before Dawn", "status": "pending" },
-    { "id": 7, "title": "Tending a Garden Under a Summer Night Sky", "status": "pending" },
-    { "id": 8, "title": "A Slow Boat Along a Misty River", "status": "pending" },
-    { "id": 9, "title": "The Observatory on a Clear Winter Night", "status": "pending" },
-    { "id": 10, "title": "A Snowbound Mountain Tea House", "status": "pending" }
+    {
+      "id": 1,
+      "title": "A Slow Walk Through a Moonlit Forest",
+      "status": "done"
+    },
+    {
+      "id": 2,
+      "title": "The Lighthouse Keeper's Quiet Night",
+      "status": "pending"
+    },
+    {
+      "id": 3,
+      "title": "Drifting on a Sleeper Train Through the Countryside",
+      "status": "pending"
+    },
+    {
+      "id": 4,
+      "title": "A Cabin by the Lake in Autumn Rain",
+      "status": "pending"
+    },
+    {
+      "id": 5,
+      "title": "The Old Library After Closing Time",
+      "status": "pending"
+    },
+    {
+      "id": 6,
+      "title": "A Quiet Village Bakery Before Dawn",
+      "status": "pending"
+    },
+    {
+      "id": 7,
+      "title": "Tending a Garden Under a Summer Night Sky",
+      "status": "pending"
+    },
+    {
+      "id": 8,
+      "title": "A Slow Boat Along a Misty River",
+      "status": "pending"
+    },
+    {
+      "id": 9,
+      "title": "The Observatory on a Clear Winter Night",
+      "status": "pending"
+    },
+    {
+      "id": 10,
+      "title": "A Snowbound Mountain Tea House",
+      "status": "pending"
+    }
   ],
-  "used_pexels_ids": [],
-  "history": []
+  "used_pexels_ids": [
+    20100164,
+    18138981,
+    14019782,
+    6867012,
+    7198314,
+    36412052
+  ],
+  "history": [
+    {
+      "topic_id": 1,
+      "title": "A Slow Walk Through a Moonlit Forest",
+      "generated_at": "2026-09-07T18:08:55.038937+00:00"
+    }
+  ]
 }
