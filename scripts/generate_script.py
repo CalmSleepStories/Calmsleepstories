@@ -21,19 +21,37 @@ VIDEO_MINUTES = int(os.environ.get("VIDEO_MINUTES", "20"))
 WORDS_PER_MINUTE = 130
 TARGET_WORDS = VIDEO_MINUTES * WORDS_PER_MINUTE
 
-SYSTEM_PROMPT = f"""You are writing a long-form bedtime sleep story script, meant to be read aloud
+# Rotating narrative angles so every video isn't structurally identical
+# (same POV, same opening, same pacing pattern every single time). This is
+# picked deterministically from how many stories have been made so far,
+# so it cycles through all of them and each run is reproducible.
+STYLE_VARIANTS = [
+    "Second person ('you'), starting with arriving somewhere and settling in slowly.",
+    "Gentle third person following one quiet character, starting mid-routine, already at ease.",
+    "Second person, starting with a small sensory detail (a sound or smell) before revealing the place.",
+    "Gentle third person, structured as a slow walk from one quiet spot to another over time.",
+    "Second person, framed as memory being recalled slowly, unhurried, half-dreaming.",
+]
+
+SYSTEM_PROMPT_TEMPLATE = """You are writing a long-form bedtime sleep story script, meant to be read aloud
 slowly in a soft, calm voice for adults who want to relax and fall asleep.
 
+Narrative approach for this story specifically: {style}
+
 Rules:
-- Second person or gentle third person, present tense, very slow pacing.
+- Very slow pacing, present tense.
 - No jump scares, conflict, tension, or cliffhangers. Nothing exciting should happen.
 - Long, unhurried descriptive passages: sounds, textures, light, temperature, small repetitive actions.
 - Short, simple sentences. Frequent natural pauses (write them as separate short paragraphs).
 - Do not use chapter headings, slide numbers, bullet points, or any formatting.
 - Do not include stage directions like "[pause]" or sound effect notes.
 - Output ONLY the narration text the narrator will read aloud, nothing else.
-- Target length: approximately {TARGET_WORDS} words (this is a {VIDEO_MINUTES}-minute story).
+- Target length: approximately {target_words} words (this is a {video_minutes}-minute story).
 """
+
+
+def pick_style_variant(history_count: int) -> str:
+    return STYLE_VARIANTS[history_count % len(STYLE_VARIANTS)]
 
 
 def load_plan():
@@ -55,17 +73,36 @@ def pick_topic(plan):
     )
 
 
-def generate_script(topic_title: str) -> str:
+def generate_script(topic_title: str, style: str) -> str:
     genai.configure(api_key=os.environ["GEMINI_API_KEY"])
     model = genai.GenerativeModel("gemini-3.6-flash")
 
-    prompt = f"{SYSTEM_PROMPT}\n\nTonight's story topic: \"{topic_title}\""
+    system_prompt = SYSTEM_PROMPT_TEMPLATE.format(
+        style=style, target_words=TARGET_WORDS, video_minutes=VIDEO_MINUTES
+    )
+    prompt = f"{system_prompt}\n\nTonight's story topic: \"{topic_title}\""
     response = model.generate_content(prompt)
     text = response.text.strip()
 
     # Safety net: strip any stray markdown/formatting Gemini might add.
     text = re.sub(r"[#*_`]", "", text)
     return text
+
+
+def generate_author_note(topic_title: str) -> str:
+    """A short, specific 2-3 sentence note for the video description so the
+    description isn't the exact same boilerplate every single upload."""
+    genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+    model = genai.GenerativeModel("gemini-3.6-flash")
+    prompt = (
+        "Write 2 short sentences (max 40 words total) that could sit at the top of a "
+        "YouTube description for a bedtime sleep-story video, speaking directly and "
+        "warmly to the viewer about tonight's specific story below. Be specific to the "
+        "topic, not generic boilerplate. No hashtags, no emojis, no quotation marks.\n\n"
+        f"Tonight's story: \"{topic_title}\""
+    )
+    response = model.generate_content(prompt)
+    return response.text.strip()
 
 
 def derive_visual_queries(topic_title: str) -> list:
@@ -88,10 +125,14 @@ def main():
     os.makedirs(OUT_DIR, exist_ok=True)
     plan = load_plan()
     topic = pick_topic(plan)
+    history_count = len(plan.get("history", []))
+    style = pick_style_variant(history_count)
 
     print(f"Generating sleep-story script for: {topic['title']}")
-    script_text = generate_script(topic["title"])
+    print(f"Narrative style for this run: {style}")
+    script_text = generate_script(topic["title"], style)
     visual_queries = derive_visual_queries(topic["title"])
+    author_note = generate_author_note(topic["title"])
 
     word_count = len(script_text.split())
     print(f"Script generated: {word_count} words (target ~{TARGET_WORDS})")
@@ -104,6 +145,8 @@ def main():
         "title": topic["title"],
         "word_count": word_count,
         "visual_queries": visual_queries,
+        "style": style,
+        "author_note": author_note,
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
     with open(os.path.join(OUT_DIR, "metadata.json"), "w", encoding="utf-8") as f:

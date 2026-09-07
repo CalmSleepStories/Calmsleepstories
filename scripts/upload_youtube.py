@@ -32,20 +32,44 @@ def get_youtube_client():
     return build("youtube", "v3", credentials=creds)
 
 
+# A few closing lines and hashtag sets to rotate through, so the description
+# isn't byte-for-byte identical on every upload (helps with YouTube's
+# inauthentic/reused-content review, which looks at whole-channel patterns).
+CLOSING_LINES = [
+    "Settle in, let your shoulders drop, and let this one carry you off.",
+    "No need to follow every word — just let the sound wash over you.",
+    "Perfect for winding down after a long day, or for staying asleep through the night.",
+    "Dim the lights, get comfortable, and let this be the last thing you hear tonight.",
+]
+
+HASHTAG_SETS = [
+    "#sleepstory #bedtimestory #relaxation",
+    "#sleepstories #calmmind #deepsleep",
+    "#bedtimestory #insomniahelp #relaxingvoice",
+    "#sleepstory #slowliving #nightroutine",
+]
+
+
 def build_metadata(meta: dict) -> dict:
     date_str = datetime.now(timezone.utc).strftime("%B %d, %Y")
     title = f"{meta['title']} | Sleep Story for Deep Rest ({date_str})"
     if len(title) > 100:
         title = title[:97] + "..."
 
-    description = (
-        f"{meta['title']}\n\n"
-        "A slow, calming bedtime story to help you relax and drift off to sleep. "
-        "Written and narrated for a peaceful night's rest.\n\n"
-        f"Tonight's story was generated on {date_str} and won't be repeated.\n\n"
-        "Background footage courtesy of Pexels.\n"
-        "#sleepstory #bedtimestory #relaxation"
-    )
+    topic_id = meta.get("topic_id", 0)
+    author_note = meta.get("author_note", "").strip()
+    closing_line = CLOSING_LINES[topic_id % len(CLOSING_LINES)]
+    hashtags = HASHTAG_SETS[topic_id % len(HASHTAG_SETS)]
+
+    description_parts = [meta["title"]]
+    if author_note:
+        description_parts.append(author_note)
+    description_parts.append(closing_line)
+    description_parts.append(f"Tonight's story was generated on {date_str} and won't be repeated.")
+    description_parts.append("Narration is AI-generated. Background footage courtesy of Pexels.")
+    description_parts.append(hashtags)
+
+    description = "\n\n".join(description_parts)
 
     return {
         "snippet": {
@@ -57,6 +81,9 @@ def build_metadata(meta: dict) -> dict:
         "status": {
             "privacyStatus": "public",
             "selfDeclaredMadeForKids": MADE_FOR_KIDS,
+            # Discloses that narration/voice is AI-generated, per YouTube's
+            # "How this content was made" disclosure requirements.
+            "containsSyntheticMedia": True,
         },
     }
 

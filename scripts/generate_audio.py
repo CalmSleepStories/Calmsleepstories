@@ -5,6 +5,7 @@ per-request limits, then stitches them together.
 """
 
 import os
+import json
 import asyncio
 import subprocess
 
@@ -13,10 +14,37 @@ import edge_tts
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT_DIR = os.path.join(ROOT, "output")
 SCRIPT_PATH = os.path.join(OUT_DIR, "script.txt")
+METADATA_PATH = os.path.join(OUT_DIR, "metadata.json")
 
-VOICE = os.environ.get("TTS_VOICE", "en-US-JennyNeural")
-RATE = os.environ.get("TTS_RATE", "-15%")   # slower than normal speech
-PITCH = os.environ.get("TTS_PITCH", "-5Hz")  # slightly lower, softer tone
+# A small pool of calm, slow-friendly voices. When TTS_VOICE isn't pinned via
+# env, we rotate through these based on the topic id so narration doesn't
+# sound identical on every single upload (helps avoid a "templated" feel).
+VOICE_POOL = [
+    "en-US-JennyNeural",
+    "en-US-AriaNeural",
+    "en-GB-SoniaNeural",
+    "en-US-MichelleNeural",
+]
+
+# Small per-run jitter so pacing isn't bit-for-bit identical across videos,
+# while staying inside a calm/slow range.
+RATE_POOL = ["-18%", "-15%", "-12%"]
+PITCH_POOL = ["-6Hz", "-5Hz", "-4Hz"]
+
+
+def load_metadata():
+    if os.path.exists(METADATA_PATH):
+        with open(METADATA_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+
+_metadata = load_metadata()
+_topic_id = _metadata.get("topic_id", 0)
+
+VOICE = os.environ.get("TTS_VOICE") or VOICE_POOL[_topic_id % len(VOICE_POOL)]
+RATE = os.environ.get("TTS_RATE") or RATE_POOL[_topic_id % len(RATE_POOL)]
+PITCH = os.environ.get("TTS_PITCH") or PITCH_POOL[_topic_id % len(PITCH_POOL)]
 VOLUME = os.environ.get("TTS_VOLUME", "-5%")
 
 CHUNK_CHAR_LIMIT = 3000  # keep well under edge-tts practical limits
@@ -71,6 +99,8 @@ def main():
     with open(SCRIPT_PATH, "r", encoding="utf-8") as f:
         script_text = f.read()
 
+    print(f"Using voice {VOICE} (rate {RATE}, pitch {PITCH}) for this run.")
+
     chunks = chunk_text(script_text, CHUNK_CHAR_LIMIT)
     print(f"Script split into {len(chunks)} chunk(s) for TTS.")
 
@@ -83,6 +113,11 @@ def main():
         stitch_with_ffmpeg(part_paths, final_path)
         for p in part_paths:
             os.remove(p)
+
+    if _metadata:
+        _metadata["tts_voice"] = VOICE
+        with open(METADATA_PATH, "w", encoding="utf-8") as f:
+            json.dump(_metadata, f, indent=2, ensure_ascii=False)
 
     print(f"Done. Wrote {final_path}")
 
