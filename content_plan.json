@@ -8,7 +8,7 @@
     {
       "id": 2,
       "title": "The Lighthouse Keeper's Quiet Night",
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": 3,
@@ -52,18 +52,29 @@
     }
   ],
   "used_pexels_ids": [
+    18431843,
     20100164,
     18138981,
     14019782,
     6867012,
+    11287848,
     7198314,
-    36412052
+    32924946,
+    36412052,
+    6047732,
+    6256795,
+    16112092
   ],
   "history": [
     {
       "topic_id": 1,
       "title": "A Slow Walk Through a Moonlit Forest",
       "generated_at": "2026-09-07T18:08:55.038937+00:00"
+    },
+    {
+      "topic_id": 2,
+      "title": "The Lighthouse Keeper's Quiet Night",
+      "generated_at": "2026-09-08T02:57:53.411920+00:00"
     }
   ]
 }
