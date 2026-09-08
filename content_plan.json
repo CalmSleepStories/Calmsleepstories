@@ -13,7 +13,7 @@
     {
       "id": 3,
       "title": "Drifting on a Sleeper Train Through the Countryside",
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": 4,
@@ -52,6 +52,7 @@
     }
   ],
   "used_pexels_ids": [
+    8118594,
     18431843,
     20100164,
     18138981,
@@ -59,11 +60,16 @@
     6867012,
     11287848,
     7198314,
+    7628842,
+    39415057,
     32924946,
     36412052,
     6047732,
+    18500568,
     6256795,
-    16112092
+    16112092,
+    34735453,
+    5517022
   ],
   "history": [
     {
@@ -75,6 +81,11 @@
       "topic_id": 2,
       "title": "The Lighthouse Keeper's Quiet Night",
       "generated_at": "2026-09-08T02:57:53.411920+00:00"
+    },
+    {
+      "topic_id": 3,
+      "title": "Drifting on a Sleeper Train Through the Countryside",
+      "generated_at": "2026-09-08T13:01:59.254052+00:00"
     }
   ]
 }
