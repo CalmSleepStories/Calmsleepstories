@@ -1,11 +1,10 @@
-name: Daily Sleep Story Upload
+name: Daily Sleep Story Short Upload
 
 on:
   schedule:
-    # 21:00 UTC every 2 days (runs on odd days of the month: 1,3,5...31) =
-    # good evening upload time for US/EU audiences.
-    # Change to match when your audience is most likely to be winding down.
-    - cron: "0 21 */2 * *"
+    # 21:00 UTC every day — good evening time for US/EU audiences.
+    # Change cron to match when your audience is winding down.
+    - cron: "0 21 * * *"
   workflow_dispatch: {}   # lets you trigger a run manually from the Actions tab
 
 permissions:
@@ -14,7 +13,7 @@ permissions:
 jobs:
   build-and-upload:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 30   # Shorts are much faster than long videos
 
     steps:
       - name: Checkout repo
@@ -38,7 +37,6 @@ jobs:
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
-          VIDEO_MINUTES: "20"
           TTS_VOICE: "en-US-JennyNeural"
           TTS_RATE: "-15%"
           CHANNEL_MADE_FOR_KIDS: "false"
