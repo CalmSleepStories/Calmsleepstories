@@ -1,7 +1,8 @@
 """
 Downloads calm background video clips from Pexels matching the story's
-visual_queries (written by generate_script.py). Avoids reusing clips already
-listed in content_plan.json's used_pexels_ids.
+visual_queries (written by generate_script.py). Prefers vertical (portrait)
+clips for YouTube Shorts. Avoids reusing clips already listed in
+content_plan.json's used_pexels_ids.
 """
 
 import os
@@ -16,7 +17,7 @@ METADATA_PATH = os.path.join(OUT_DIR, "metadata.json")
 
 PEXELS_API_KEY = os.environ["PEXELS_API_KEY"]
 HEADERS = {"Authorization": PEXELS_API_KEY}
-MIN_DURATION_SECONDS = 12  # skip very short clips, they cause too many jump-cuts
+MIN_DURATION_SECONDS = 8  # Shorts need fewer/longer clips; skip tiny ones
 
 
 def load_json(path):
@@ -30,10 +31,15 @@ def save_json(path, data):
 
 
 def search_pexels_video(query: str, used_ids: set):
+    # Prefer portrait (vertical) for Shorts
     resp = requests.get(
         "https://api.pexels.com/videos/search",
         headers=HEADERS,
-        params={"query": query, "per_page": 10, "orientation": "landscape"},
+        params={
+            "query": query,
+            "per_page": 15,
+            "orientation": "portrait",
+        },
         timeout=30,
     )
     resp.raise_for_status()
@@ -44,14 +50,20 @@ def search_pexels_video(query: str, used_ids: set):
             continue
         if video.get("duration", 0) < MIN_DURATION_SECONDS:
             continue
-        # Pick the highest-resolution HD file available.
+        # Prefer highest resolution that is vertical-ish
         files = sorted(
             video["video_files"],
-            key=lambda f: f.get("width", 0),
+            key=lambda f: f.get("height", 0),
             reverse=True,
         )
-        hd_files = [f for f in files if f.get("width", 0) >= 1280]
-        chosen = hd_files[0] if hd_files else files[0]
+        # Prefer files that are taller than wide (portrait)
+        portrait_files = [f for f in files if f.get("height", 0) > f.get("width", 0)]
+        if portrait_files:
+            chosen = portrait_files[0]
+        else:
+            # Fallback to any high-res file; compose will crop to 9:16
+            hd_files = [f for f in files if f.get("height", 0) >= 720]
+            chosen = hd_files[0] if hd_files else files[0]
         return video["id"], chosen["link"]
 
     return None, None
@@ -77,8 +89,24 @@ def main():
     for i, query in enumerate(queries):
         video_id, url = search_pexels_video(query, used_ids)
         if not url:
-            print(f"No fresh clip found for '{query}', trying a fallback query.")
-            video_id, url = search_pexels_video("calm nature slow motion", used_ids)
+            print(f"No fresh vertical clip found for '{query}', trying fallback.")
+            video_id, url = search_pexels_video("calm nature", used_ids)
+        if not url:
+            # Last resort: try landscape and let compose crop
+            resp = requests.get(
+                "https://api.pexels.com/videos/search",
+                headers=HEADERS,
+                params={"query": query, "per_page": 10, "orientation": "landscape"},
+                timeout=30,
+            )
+            if resp.ok:
+                for video in resp.json().get("videos", []):
+                    if video["id"] in used_ids or video.get("duration", 0) < MIN_DURATION_SECONDS:
+                        continue
+                    files = sorted(video["video_files"], key=lambda f: f.get("width", 0), reverse=True)
+                    if files:
+                        video_id, url = video["id"], files[0]["link"]
+                        break
         if not url:
             print(f"Skipping query '{query}', no clip available.")
             continue

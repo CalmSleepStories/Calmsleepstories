@@ -1,7 +1,6 @@
 """
-Uploads output/final_video.mp4 to YouTube using an OAuth refresh token
-(no browser login needed in CI, no cookies). Builds a unique title and
-description from this run's metadata so nothing gets repeated.
+Uploads output/final_video.mp4 to YouTube as a Short using an OAuth refresh token.
+Builds full SEO title, description, tags and hashtags from metadata.
 """
 
 import os
@@ -32,57 +31,49 @@ def get_youtube_client():
     return build("youtube", "v3", credentials=creds)
 
 
-# A few closing lines and hashtag sets to rotate through, so the description
-# isn't byte-for-byte identical on every upload (helps with YouTube's
-# inauthentic/reused-content review, which looks at whole-channel patterns).
-CLOSING_LINES = [
-    "Settle in, let your shoulders drop, and let this one carry you off.",
-    "No need to follow every word — just let the sound wash over you.",
-    "Perfect for winding down after a long day, or for staying asleep through the night.",
-    "Dim the lights, get comfortable, and let this be the last thing you hear tonight.",
-]
-
-HASHTAG_SETS = [
-    "#sleepstory #bedtimestory #relaxation",
-    "#sleepstories #calmmind #deepsleep",
-    "#bedtimestory #insomniahelp #relaxingvoice",
-    "#sleepstory #slowliving #nightroutine",
-]
-
-
 def build_metadata(meta: dict) -> dict:
-    date_str = datetime.now(timezone.utc).strftime("%B %d, %Y")
-    title = f"{meta['title']} | Sleep Story for Deep Rest ({date_str})"
+    seo = meta.get("seo") or {}
+    topic_title = meta.get("title", "Calm Sleep Story")
+
+    # Title: prefer SEO title, fallback to topic
+    title = seo.get("title") or f"{topic_title} | Calm Sleep Story"
     if len(title) > 100:
         title = title[:97] + "..."
 
-    topic_id = meta.get("topic_id", 0)
-    author_note = meta.get("author_note", "").strip()
-    closing_line = CLOSING_LINES[topic_id % len(CLOSING_LINES)]
-    hashtags = HASHTAG_SETS[topic_id % len(HASHTAG_SETS)]
+    # Description: SEO body + hashtags at the end
+    desc_body = seo.get("description") or (
+        f"A calm sleep story about {topic_title.lower()}. "
+        "Soft narration to help you relax and fall asleep. "
+        "Follow for more peaceful Shorts."
+    )
+    hashtags = seo.get("hashtags") or ["#Shorts", "#SleepStory", "#Calm", "#Relaxation", "#DeepSleep"]
+    # Ensure #Shorts is present
+    hashtag_str = " ".join(hashtags)
+    if "#Shorts" not in hashtag_str and "#shorts" not in hashtag_str.lower():
+        hashtag_str = "#Shorts " + hashtag_str
 
-    description_parts = [meta["title"]]
-    if author_note:
-        description_parts.append(author_note)
-    description_parts.append(closing_line)
-    description_parts.append(f"Tonight's story was generated on {date_str} and won't be repeated.")
-    description_parts.append("Narration is AI-generated. Background footage courtesy of Pexels.")
-    description_parts.append(hashtags)
+    description = f"{desc_body}\n\n{hashtag_str}"
 
-    description = "\n\n".join(description_parts)
+    # Backend tags
+    tags = seo.get("tags") or [
+        "sleep story", "calm sleep story", "bedtime story", "relaxation",
+        "deep sleep", "sleep aid", "calm narration", "peaceful story",
+        "fall asleep", "sleep shorts", "soft voice", "ambient sleep"
+    ]
+    # YouTube tags total char limit ~500; keep it safe
+    tags = tags[:12]
 
     return {
         "snippet": {
             "title": title,
             "description": description,
-            "tags": ["sleep story", "bedtime story", "relaxation", "calm", "sleep aid"],
-            "categoryId": "22",  # People & Blogs; change if you prefer
+            "tags": tags,
+            "categoryId": "22",  # People & Blogs
         },
         "status": {
             "privacyStatus": "public",
             "selfDeclaredMadeForKids": MADE_FOR_KIDS,
-            # Discloses that narration/voice is AI-generated, per YouTube's
-            # "How this content was made" disclosure requirements.
+            # Discloses that narration/voice is AI-generated
             "containsSyntheticMedia": True,
         },
     }
@@ -98,10 +89,12 @@ def main():
     youtube = get_youtube_client()
     body = build_metadata(meta)
 
-    media = MediaFileUpload(VIDEO_PATH, mimetype="video/mp4", resumable=True, chunksize=1024 * 1024 * 8)
+    media = MediaFileUpload(
+        VIDEO_PATH, mimetype="video/mp4", resumable=True, chunksize=1024 * 1024 * 8
+    )
     request = youtube.videos().insert(part="snippet,status", body=body, media_body=media)
 
-    print(f"Uploading '{body['snippet']['title']}'...")
+    print(f"Uploading Short: '{body['snippet']['title']}'...")
     response = None
     while response is None:
         status, response = request.next_chunk()
@@ -109,7 +102,8 @@ def main():
             print(f"  Upload progress: {int(status.progress() * 100)}%")
 
     video_id = response["id"]
-    print(f"Done. Uploaded: https://www.youtube.com/watch?v={video_id}")
+    print(f"Done. Uploaded Short: https://www.youtube.com/shorts/{video_id}")
+    print(f"Watch page: https://www.youtube.com/watch?v={video_id}")
 
 
 if __name__ == "__main__":

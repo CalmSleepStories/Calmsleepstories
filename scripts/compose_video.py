@@ -1,9 +1,9 @@
 """
-Builds the final sleep-story video:
+Builds the final 60-second YouTube Short:
 1. Concatenates the downloaded Pexels clips into one looped background track
-   long enough to cover the full narration.
+   long enough to cover the full narration (vertical 9:16).
 2. Mixes narration (loud) with optional looping background music (quiet).
-3. Muxes video + mixed audio into output/final_video.mp4.
+3. Muxes video + mixed audio into output/final_video.mp4 at 1080x1920.
 
 Everything is done with ffmpeg subprocess calls to keep the CI runner light.
 """
@@ -20,6 +20,10 @@ NARRATION_PATH = os.path.join(OUT_DIR, "narration.mp3")
 FINAL_PATH = os.path.join(OUT_DIR, "final_video.mp4")
 
 MUSIC_VOLUME = os.environ.get("MUSIC_VOLUME", "0.08")  # very quiet bed under narration
+
+# YouTube Shorts standard
+SHORTS_WIDTH = 1080
+SHORTS_HEIGHT = 1920
 
 
 def run(cmd):
@@ -39,15 +43,15 @@ def ffprobe_duration(path: str) -> float:
 
 
 def build_looped_background(clip_paths: list, target_seconds: float, out_path: str):
-    """Concatenate clips repeatedly (looping the list) until we cover target_seconds,
-    then trim to exactly target_seconds."""
+    """Concatenate clips repeatedly until we cover target_seconds,
+    scale+crop to exact 1080x1920 (9:16), then trim."""
     concat_list_path = os.path.join(OUT_DIR, "video_concat.txt")
 
     clip_durations = [ffprobe_duration(p) for p in clip_paths]
     total = 0.0
     sequence = []
     i = 0
-    while total < target_seconds:
+    while total < target_seconds + 2:  # a little extra headroom
         idx = i % len(clip_paths)
         sequence.append(clip_paths[idx])
         total += clip_durations[idx]
@@ -58,15 +62,20 @@ def build_looped_background(clip_paths: list, target_seconds: float, out_path: s
             f.write(f"file '{os.path.abspath(p)}'\n")
 
     looped_full_path = os.path.join(OUT_DIR, "video_looped_full.mp4")
+    # Scale to fill 9:16 and crop center — works for both portrait and landscape sources
+    vf = (
+        f"scale={SHORTS_WIDTH}:{SHORTS_HEIGHT}:force_original_aspect_ratio=increase,"
+        f"crop={SHORTS_WIDTH}:{SHORTS_HEIGHT},fps=30"
+    )
     run([
         "ffmpeg", "-y", "-f", "concat", "-safe", "0",
         "-i", concat_list_path,
-        "-vf", "scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,fps=30",
+        "-vf", vf,
         "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-an",
         looped_full_path,
     ])
 
-    # Trim to exact narration length.
+    # Trim to exact narration length
     run([
         "ffmpeg", "-y", "-i", looped_full_path, "-t", str(target_seconds),
         "-c", "copy", out_path,
@@ -108,14 +117,16 @@ def main():
         clip_paths = json.load(f)
 
     narration_seconds = ffprobe_duration(NARRATION_PATH)
-    print(f"Narration length: {narration_seconds:.1f}s")
+    # Cap at ~65s just in case TTS ran a bit long; Shorts max is 3 min but we target 60
+    target_seconds = min(narration_seconds, 65.0)
+    print(f"Narration length: {narration_seconds:.1f}s → using {target_seconds:.1f}s for Short")
 
     background_video_path = os.path.join(OUT_DIR, "video_background.mp4")
-    build_looped_background(clip_paths, narration_seconds, background_video_path)
+    build_looped_background(clip_paths, target_seconds, background_video_path)
 
     mixed_audio_path = os.path.join(OUT_DIR, "mixed_audio.aac")
     music_path = find_music_track()
-    mix_audio(NARRATION_PATH, music_path, narration_seconds, mixed_audio_path)
+    mix_audio(NARRATION_PATH, music_path, target_seconds, mixed_audio_path)
 
     run([
         "ffmpeg", "-y",
@@ -128,7 +139,7 @@ def main():
         FINAL_PATH,
     ])
 
-    print(f"Done. Wrote {FINAL_PATH}")
+    print(f"Done. Wrote {FINAL_PATH} (vertical 1080x1920 Short)")
 
 
 if __name__ == "__main__":
