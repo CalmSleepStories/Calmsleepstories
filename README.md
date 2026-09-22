@@ -1,20 +1,24 @@
-# Sleep Story Automation
+# Sleep Story Shorts Automation
 
-Roz automatic ek 15-25 minute ka calm sleep-story video banata aur YouTube pe upload karta hai.
-Gemini script likhta hai, edge-tts soft awaaz mein narrate karta hai, Pexels se calm background
-clips aati hain, ffmpeg video assemble karta hai, aur GitHub Actions roz khud trigger karta hai.
+Roz automatic ek **~60 second** ka calm sleep-story **YouTube Short** banata aur upload karta hai.
+
+Gemini short script likhta hai, edge-tts soft awaaz mein narrate karta hai, Pexels se vertical calm clips aati hain, ffmpeg 9:16 video assemble karta hai, aur GitHub Actions schedule pe trigger karta hai.
+
+**Full SEO** included: keyword-rich title, optimized description, hashtags (#Shorts + niche), backend tags.
+
 100% free (GitHub Actions free tier + free API tiers).
 
 ## Pipeline
+
 ```
-generate_script.py   -> Gemini se sleep-story script (~word count = VIDEO_MINUTES x 130)
+generate_script.py   -> Gemini se ~60s sleep-story script + full SEO metadata
 generate_audio.py    -> edge-tts se slow/soft narration (mp3)
-fetch_background.py  -> Pexels se calm clips (kabhi repeat nahi hote)
-compose_video.py     -> ffmpeg se video + background music mix + final mp4
-upload_youtube.py    -> YouTube pe unique title/description ke saath upload
+fetch_background.py  -> Pexels se vertical calm clips (kabhi repeat nahi hote)
+compose_video.py     -> ffmpeg se 1080x1920 (9:16) Short + music mix
+upload_youtube.py    -> YouTube pe SEO title/description/tags ke saath upload
 ```
-`main.py` in sabko order mein chalata hai. `.github/workflows/daily-upload.yml` isko roz
-schedule pe (aur manually bhi) trigger karta hai.
+
+`main.py` in sabko order mein chalata hai. `.github/workflows/daily-upload.yml` isko roz schedule pe (aur manually bhi) trigger karta hai.
 
 ## Setup (ek baar karna hai)
 
@@ -49,7 +53,7 @@ Library, Pixabay Music, ya Freesound se free mil jaate hain). Nahi doge to sirf 
 video chalta rahega, bas music nahi hoga.
 
 ### 5. Topics list badhao
-`content_plan.json` mein 10 starter topics already hain. Jab sab "done" ho jayen to naye topics
+`content_plan.json` mein starter topics already hain. Jab sab "done" ho jayen to naye topics
 add karna mat bhoolna (`"status": "pending"` ke saath), warna pipeline fail ho jayega.
 
 ### 6. Schedule time set karo
@@ -60,14 +64,17 @@ ke time-zone ke hisaab se badal do.
 GitHub par repo ke Actions tab mein jaake workflow select karo -> "Run workflow" (manual trigger).
 Poora pipeline chalke dekho, koi error aaye to Actions log mein dikh jayega.
 
-## YouTube policy notes
-- Roz sirf 1 video daalo, spam mat lagao
-- Har video ka title/description unique hai (script auto-generate karta hai)
-- `CHANNEL_MADE_FOR_KIDS=false` set hai workflow mein (adult sleep stories ke liye sahi)
+## YouTube Shorts + SEO notes
+- Har Short ~60 seconds, vertical 1080x1920 (9:16) — automatically Shorts feed mein jaata hai
+- Title: keyword front-loaded, under 70 characters
+- Description: primary keyword pehli sentence mein + soft CTA
+- Hashtags: `#Shorts` + 3-4 niche tags (description ke end mein)
+- Backend tags: 8-12 relevant keywords
+- `CHANNEL_MADE_FOR_KIDS=false` set hai (adult sleep stories ke liye sahi)
 - Same script/story kabhi dobara nahi banti — `content_plan.json` history track karta hai
 - Pexels clips bhi dedup hote hain (`used_pexels_ids` list)
+- AI-generated disclosure (`containsSyntheticMedia: true`) already hai
 
 ## Costs
 Sab kuch free tier ke andar: GitHub Actions (2000 free min/month), Gemini free tier, Pexels free
-tier, YouTube Data API free quota (upload me thoda quota lagta hai, daily 1 upload easily fit ho
-jata hai).
+tier, YouTube Data API free quota (daily 1 Short easily fit ho jata hai).
