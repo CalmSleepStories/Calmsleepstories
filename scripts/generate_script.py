@@ -9,6 +9,7 @@ generated twice.
 import os
 import json
 import re
+import time
 from datetime import datetime, timezone
 
 import google.generativeai as genai
@@ -21,6 +22,9 @@ OUT_DIR = os.path.join(ROOT, "output")
 # ~130 spoken words per minute at a calm sleep-story pace → ~130 words for 60s.
 TARGET_WORDS = 130
 VIDEO_SECONDS = 60
+
+# Try models in this order. If one hits a quota/rate-limit error, fall back to the next.
+MODEL_FALLBACKS = ["gemini-2.0-flash", "gemini-3.6-flash"]
 
 # Rotating narrative angles so every Short isn't structurally identical.
 STYLE_VARIANTS = [
@@ -71,16 +75,45 @@ def pick_topic(plan):
     )
 
 
-def generate_script(topic_title: str, style: str) -> str:
+def call_gemini_with_fallback(prompt: str, retries_per_model: int = 1) -> str:
+    """
+    Try each model in MODEL_FALLBACKS in order. On a quota/rate-limit error,
+    wait briefly and retry once on the same model, then move to the next model.
+    Raises the last error if every model fails.
+    """
     genai.configure(api_key=os.environ["GEMINI_API_KEY"])
-    model = genai.GenerativeModel("gemini-3.6-flash")
+    last_error = None
 
+    for model_name in MODEL_FALLBACKS:
+        model = genai.GenerativeModel(model_name)
+        for attempt in range(retries_per_model + 1):
+            try:
+                print(f"Trying model: {model_name} (attempt {attempt + 1})")
+                response = model.generate_content(prompt)
+                return response.text.strip()
+            except Exception as e:
+                last_error = e
+                error_str = str(e)
+                is_quota_error = "429" in error_str or "quota" in error_str.lower()
+                if is_quota_error and attempt < retries_per_model:
+                    wait_seconds = 20
+                    print(f"Quota/rate-limit hit on {model_name}. Waiting {wait_seconds}s before retry...")
+                    time.sleep(wait_seconds)
+                    continue
+                else:
+                    print(f"Model {model_name} failed: {error_str}")
+                    break  # move on to next model in MODEL_FALLBACKS
+
+    # If we get here, every model + retry failed.
+    raise RuntimeError(f"All Gemini models failed. Last error: {last_error}")
+
+
+def generate_script(topic_title: str, style: str) -> str:
     system_prompt = SYSTEM_PROMPT_TEMPLATE.format(
         style=style, target_words=TARGET_WORDS
     )
     prompt = f"{system_prompt}\n\nTonight's story topic: \"{topic_title}\""
-    response = model.generate_content(prompt)
-    text = response.text.strip()
+    text = call_gemini_with_fallback(prompt)
 
     # Safety net: strip any stray markdown/formatting Gemini might add.
     text = re.sub(r"[#*_`]", "", text)
@@ -89,9 +122,6 @@ def generate_script(topic_title: str, style: str) -> str:
 
 def generate_seo_metadata(topic_title: str) -> dict:
     """Generate full SEO package: keyword-optimized title, description, tags, hashtags."""
-    genai.configure(api_key=os.environ["GEMINI_API_KEY"])
-    model = genai.GenerativeModel("gemini-3.6-flash")
-
     prompt = f"""You are a YouTube Shorts SEO expert for calm sleep / relaxation content.
 
 Topic: "{topic_title}"
@@ -114,8 +144,7 @@ Rules:
 - Output pure JSON only, no markdown, no explanation.
 """
 
-    response = model.generate_content(prompt)
-    raw = response.text.strip()
+    raw = call_gemini_with_fallback(prompt)
 
     # Strip markdown code fences if present
     raw = re.sub(r"^```json\s*", "", raw)
@@ -150,8 +179,6 @@ Rules:
 
 def derive_visual_queries(topic_title: str) -> list:
     """Ask Gemini for calm vertical-friendly Pexels search queries."""
-    genai.configure(api_key=os.environ["GEMINI_API_KEY"])
-    model = genai.GenerativeModel("gemini-3.6-flash")
     prompt = (
         "Give me 5 short Pexels stock-video search queries (2-4 words each) for calm, "
         "slow, vertical-friendly sleep-story background footage matching this topic. "
@@ -159,8 +186,8 @@ def derive_visual_queries(topic_title: str) -> list:
         f"Topic: \"{topic_title}\". "
         "Output ONLY the 5 queries, one per line, no numbering, no extra text."
     )
-    response = model.generate_content(prompt)
-    lines = [l.strip("-• \t") for l in response.text.strip().splitlines() if l.strip()]
+    text = call_gemini_with_fallback(prompt)
+    lines = [l.strip("-• \t") for l in text.strip().splitlines() if l.strip()]
     return lines[:5] if lines else ["calm nature vertical", "soft light room", "rain window slow"]
 
 
